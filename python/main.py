@@ -29,7 +29,12 @@ if os.getenv("DEBUG") == "true":
     logging.debug("Debug mode enabled")
 
 
-consumer = KafkaConsumer(bootstrap_servers=os.getenv("KAFKA_BROKER"), api_version=(2, 6, 0), group_id="aip", auto_offset_reset="earliest")
+consumer = KafkaConsumer(
+    bootstrap_servers=os.getenv("KAFKA_BROKER"),
+    api_version=(2, 6, 0),
+    group_id="aip",
+    auto_offset_reset="earliest",
+)
 client = MongoClient(os.getenv("DB_URI"))
 model = SentenceTransformer(os.getenv("SBERT_MODEL"))
 
@@ -60,7 +65,7 @@ def fetchResume(email, interview_id):
     try:
         user = collection.find_one(
             {"email": email, "interviews": {"$elemMatch": {"_id": interview_id}}},
-            {"interviews.$": 1}
+            {"interviews.$": 1},
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -119,8 +124,12 @@ def generateQuestions(resume_text, role):
     4.
     5.
 
-    Note: Do not use any markdown or special characters. Make sure the questions can be answered verbally. 
-    If the resume is not clear, generate questions based on the role and answers based on the questions.
+    Instructions:
+    * Prioritize questions that are directly relevant to the candidate's resume and the key skills required for the role.
+    * Ensure all questions can be answered verbally.
+    * If the resume is unclear, focus on assessing essential skills for the role.
+    * Do not use any markdown or special characters. 
+    * Ensure each answer directly addresses the corresponding question.
     """
 
     try:
@@ -186,8 +195,8 @@ def fetchAnswers(email, interview_id):
 
     try:
         user = collection.find_one(
-            {"email": email},
-            {"interviews": {"$elemMatch": {"_id": interview_id}}},
+            {"email": email, "interviews": {"$elemMatch": {"_id": interview_id}}},
+            {"interviews.$": 1},
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -234,7 +243,8 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
     expected_answers = "\n".join(expected_answers)
 
     prompt = f"""
-    Based on the following technical interview questions and answers for the role of {role}:
+    As an interviewer for the role of {role}, you have conducted an technical interview with {name.split(" ")[0]}.
+    Based on the answers provided by {name.split(" ")[0]}, you need to provide first person feedback on the interview.
 
     Questions:
     {question}
@@ -248,10 +258,11 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
     Calculated Cosine Similarity (Out of 5): 
     {similarity_score}
 
-    Provide relevant first person feedback to {name.split(" ")[0]} from the perspective of an interviewer in few points. Be blunt, but constructive and helpful.
+    Provide 3-5 bullet points of direct and honest feedback, focusing on both strengths and areas for improvement. Be encouraging and offer specific suggestions for growth. 
 
-    Note: Do not use any special characters.  You are only allowed to use these markdown tags: (bullet points, bold, italic, underline, code block).
-    The interview was conducted using speech to text so there may be grammatical errors in the answers, ignore them.
+    Instructions: 
+    * The interview was conducted using speech to text; please ignore minor grammatical errors.
+    * Do not use any special characters other than these markdown tags: (bullet points, bold, italic, underline, code block).
     """
 
     try:
