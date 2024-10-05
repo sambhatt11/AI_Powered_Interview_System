@@ -69,12 +69,8 @@ const uploadResumeHandler = async (req, res) => {
             resumeData: req.files.resume.data,
             resumeName: req.files.resume.name,
         });
+        const generatedId = dbUser.interviews[dbUser.interviews.length - 1]._id;
         dbUser.save();
-        const generatedId = dbUser.interviews
-            .filter(
-                (e) => e.role == role && e.resumeName == req.files.resume.name,
-            )
-            .sort((a, b) => b.time - a.time)[0].id;
 
         await sendQueueMessage(
             "resume-upload",

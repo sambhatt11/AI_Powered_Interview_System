@@ -19,7 +19,6 @@ const userSchema = new Schema({
     },
     interviews: [
         {
-            id: { type: Number, required: true, default: () => generate(6) },
             role: { type: String, required: true },
             resumeName: { type: String, required: true },
             resumeData: { type: Buffer, required: true },

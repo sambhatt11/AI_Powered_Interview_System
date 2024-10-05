@@ -1,3 +1,4 @@
+from bson import ObjectId
 import json
 import logging
 import os
@@ -9,8 +10,9 @@ import signal
 import google.generativeai as palm
 from dotenv import load_dotenv
 from kafka import KafkaConsumer
-from langchain_community.document_loaders import PyPDFLoader
+from pdf2image import convert_from_path
 from pymongo import MongoClient
+from pytesseract import image_to_string
 from sentence_transformers import SentenceTransformer, util
 
 
@@ -42,7 +44,7 @@ def processMessage(message):
             str(data["name"]),
             str(data["email"]),
             str(data["role"]),
-            int(data["id"]),
+            ObjectId((data["id"])),
         )
         logging.debug(f"Extracted: name={name}, email={email}, role={role}, interview_id={interview_id}")
         return name, email, role, interview_id
@@ -57,8 +59,8 @@ def fetchResume(email, interview_id):
 
     try:
         user = collection.find_one(
-            {"email": email},
-            {"interviews": {"$elemMatch": {"id": interview_id}}},
+            {"email": email, "interviews": {"$elemMatch": {"_id": interview_id}}},
+            {"interviews.$": 1}
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -67,9 +69,13 @@ def fetchResume(email, interview_id):
                     temp_pdf_file.write(user["interviews"][0].get("resumeData"))
                     temp_pdf_path = temp_pdf_file.name
 
-                docLoader = PyPDFLoader(temp_pdf_path)
-                document = docLoader.load()
-                text_content = document[0].page_content
+                images = convert_from_path(temp_pdf_path)
+
+                text_content = ""
+                for image in images:
+                    image = image.point(lambda x: 0 if x < 100 else 255)
+                    text = image_to_string(image)
+                    text_content += text
 
             finally:
                 if temp_pdf_path:
@@ -113,7 +119,8 @@ def generateQuestions(resume_text, role):
     4.
     5.
 
-    Note: Do not use any markdown or special characters. Make sure the questions can be answered verbally.
+    Note: Do not use any markdown or special characters. Make sure the questions can be answered verbally. 
+    If the resume is not clear, generate questions based on the role and answers based on the questions.
     """
 
     try:
@@ -153,7 +160,7 @@ def sendQuestions(email, interview_id, questions, expected_answers):
 
     try:
         result = collection.update_one(
-            {"email": email, "interviews.id": interview_id},
+            {"email": email, "interviews._id": interview_id},
             {
                 "$push": {"interviews.$.questions": {"$each": new_questions}},
                 "$set": {"interviews.$.isResumeProcessed": True},
@@ -180,7 +187,7 @@ def fetchAnswers(email, interview_id):
     try:
         user = collection.find_one(
             {"email": email},
-            {"interviews": {"$elemMatch": {"id": interview_id}}},
+            {"interviews": {"$elemMatch": {"_id": interview_id}}},
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -248,7 +255,7 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
     """
 
     try:
-        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(prompt)
+        response = palm.GenerativeModel(os.getenv("GEMINI_MODEL")).generate_content(prompt)
         feedback = response.candidates[0].content.parts[0].text
         logging.debug(f"Generated feedback: {feedback}")
         return feedback
@@ -265,7 +272,7 @@ def sendFeedback(email, interview_id, feedback, similarity_score):
 
     try:
         result = collection.update_one(
-            {"email": email, "interviews.id": interview_id},
+            {"email": email, "interviews._id": interview_id},
             {
                 "$set": {
                     "interviews.$.feedback": feedback,

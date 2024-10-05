@@ -98,6 +98,7 @@ function FeedbackPage() {
                             className="prose max-w-none"
                             dangerouslySetInnerHTML={{ __html: feedback }}
                         />
+                        <br />
                         <div className="flex items-center">
                             <span className="text-lg font-bold mr-2">
                                 Rating:
