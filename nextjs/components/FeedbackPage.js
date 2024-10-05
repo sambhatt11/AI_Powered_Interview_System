@@ -38,6 +38,7 @@ function FeedbackPage() {
                             .replace(/^- /gm, "\u2022 ")
                             .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
                             .replace(/\*(.*?)\*/g, "<i>$1</i>")
+                            .replace(/^\* /gm, "\u2022 ")
                             .replace(/`(.*?)`/g, "<code>$1</code>")
                             .replace(/~~(.*?)~~/g, "<del>$1</del>")
                             .replace(/__(.*?)__/g, "<u>$1</u>")

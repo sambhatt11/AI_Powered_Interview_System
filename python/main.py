@@ -64,8 +64,8 @@ def fetchResume(email, interview_id):
 
     try:
         user = collection.find_one(
-            {"email": email, "interviews": {"$elemMatch": {"_id": interview_id}}},
-            {"interviews.$": 1},
+            {"email": email},
+            {"interviews": {"$elemMatch": {"_id": interview_id}}},
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -126,9 +126,9 @@ def generateQuestions(resume_text, role):
 
     Instructions:
     * Prioritize questions that are directly relevant to the candidate's resume and the key skills required for the role.
-    * Ensure all questions can be answered verbally.
+    * Ensure all questions can be answered verbally in 2-3 minutes each.
     * If the resume is unclear, focus on assessing essential skills for the role.
-    * Do not use any markdown or special characters. 
+    * Do not use any special characters.
     * Ensure each answer directly addresses the corresponding question.
     """
 
@@ -144,6 +144,9 @@ def generateQuestions(resume_text, role):
 
         questions = re.findall(question_pattern, questions_part, re.DOTALL)
         answers = re.findall(answer_pattern, answers_part, re.DOTALL)
+
+        questions = [re.sub(r"[^a-zA-Z0-9\s]", "", q) for q in questions]
+        answers = [re.sub(r"[^a-zA-Z0-9\s]", "", a) for a in answers]
 
         logging.info(f"Generated {len(questions)} questions successfully")
         return [q.strip() for q in questions], [a.strip() for a in answers]
@@ -195,8 +198,8 @@ def fetchAnswers(email, interview_id):
 
     try:
         user = collection.find_one(
-            {"email": email, "interviews": {"$elemMatch": {"_id": interview_id}}},
-            {"interviews.$": 1},
+            {"email": email},
+            {"interviews": {"$elemMatch": {"_id": interview_id}}},
         )
 
         if user and "interviews" in user and user["interviews"]:
@@ -244,7 +247,7 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
 
     prompt = f"""
     As an interviewer for the role of {role}, you have conducted an technical interview with {name.split(" ")[0]}.
-    Based on the answers provided by {name.split(" ")[0]}, you need to provide first person feedback on the interview.
+    Based on the answers provided by {name.split(" ")[0]}, you need to provide feedback on the interview.
 
     Questions:
     {question}
@@ -263,6 +266,7 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
     Instructions: 
     * The interview was conducted using speech to text; please ignore minor grammatical errors.
     * Do not use any special characters other than these markdown tags: (bullet points, bold, italic, underline, code block).
+    * Ensure that the feedback is provided in first person to {name.split(" ")[0]}.
     """
 
     try:
