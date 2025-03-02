@@ -21,7 +21,7 @@ A automated online interview platform for the recruitment process.
 ## How to run
 
 ```console
-git clone https://github.com/ItsSpirax/Automated-Interview-Platform
+git clone https://github.com/sambhatt11/AI_Powered_Interview_System
 cd Automated-Interview-Platform
 ```
 
